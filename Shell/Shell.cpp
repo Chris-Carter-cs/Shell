@@ -1,9 +1,6 @@
 #include "Shell.h"
 
 
-#define FILE_SEP '/'
-
-
 void WriteDebug(std::string _log);
 void WriteDebug(std::string _log, std::string _context);
 
@@ -21,7 +18,7 @@ int main(int argc, char** argv)
     debug = false;
     currentPath = getenv("HOMEPATH");
 
-    currentPath.append("\\");
+    currentPath.push_back(FILE_SEP);
 
     //Loop to process arguements.
     for (int i = 1; i < argc; i++) {
@@ -32,7 +29,7 @@ int main(int argc, char** argv)
 
     WriteDebug("Debug Enabled");
 
-    WriteDebug("Home directory found to be", currentPath);
+    //WriteDebug("Home directory found to be", currentPath.c_str());
 
     WriteDebug("Entering main loop");
 
@@ -177,7 +174,7 @@ void ls(std::vector<std::string>* _lines) {
     std::filesystem::directory_iterator itt = std::filesystem::directory_iterator(currentPath);
     while (!itt._At_end()) {
         //Find whole string.
-        full = itt->path().generic_string();
+        full = std::string(itt->path().u8string());
         //Find relative name.
         relative = full.substr(full.find_last_of(FILE_SEP) + 1);
         
@@ -200,8 +197,32 @@ void ls(std::vector<std::string>* _lines) {
     }
 }
 
+/// <summary>
+/// Built in command used to change the current working directory.
+/// </summary>
+void cd(std::vector<std::string>* _lines) {
+    //This command should only have one parameter.
+    if (_lines->size() != 2) {
+        //TODO: Make sure that the shell can take parameters with spaces in them,
+        //  assuming they're wrapped in a pair of quotation marks.
+        printf("Usage: <cd> <filename>\n");
+        return;
+    }
 
-void cd(std::vector<std::string>* _lines) { }
+    std::string target = currentPath;
+    target.append(_lines->at(1));
+    target.push_back(FILE_SEP);
+
+    WriteDebug("Trying to change directory to file at: ", target);
+    
+    //Check to make sure the given directory exists.
+    if (!std::filesystem::is_directory(target)) {
+        printf("cd command failed due to nonexistant directory at:\n%s\n", target.c_str());
+    }
+    else {
+        currentPath = target;
+    }
+}
 
 
 void ProcessCommand(std::vector<std::string>* _lines) {
