@@ -7,6 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <filesystem>
+#include <Windows.h>
 
 #define FILE_SEP '\\'
 #define FILE_SEP_ALT '/'

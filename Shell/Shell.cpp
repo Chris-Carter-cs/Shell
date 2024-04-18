@@ -8,7 +8,7 @@ void WriteDebug(std::string _log, std::string _context);
 int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _outLines);
 
 bool BuiltIn(std::vector<std::string>* _lines);
-void ProcessCommand(std::vector<std::string>* _lines);
+void ProcessCommand(std::vector<std::string>* _lines, std::string _line);
 
 #pragma endregion
 
@@ -59,7 +59,7 @@ int main(int argc, char** argv)
 
             //This is only reached if the given line is NOT a command.
             //Interpret the line as a "run" command.
-            ProcessCommand(&linesV);
+            ProcessCommand(&linesV, line);
         }
 
     }
@@ -291,8 +291,57 @@ void cd(std::vector<std::string>* _lines) {
 
 #pragma region External
 
-void ProcessCommand(std::vector<std::string>* _lines) {
+/// <summary>
+/// Take a program name as an input and then run that program as a new process, forwarding the appropriate parameters to it.
+/// </summary>
+void ProcessCommand(std::vector<std::string>* _lines, std::string _line) {
+    //Make sure there is at least one arguement given.
+    if (_lines->size() < 1) {
+        printf("Error in running program: Requires at least one arguement\n"
+             "\tIf this error is displayed, then ProcessCommand was somehow called with zero arguements.");
+    }
 
+    //Create and zero information structures for the process and its startup.
+    STARTUPINFOA startupInfo;
+    PROCESS_INFORMATION procInfo;
+
+    ZeroMemory(&startupInfo, sizeof(startupInfo));
+    startupInfo.cb = sizeof(startupInfo);
+    ZeroMemory(&procInfo, sizeof(procInfo));
+
+    WriteDebug("Running program at ", _line.c_str());
+
+    //Check to make sure given file actually exists and can be run.
+    fsPath target = currentPath;
+    currentPath /= _lines->at(0).c_str();
+
+    if (!std::filesystem::exists(currentPath)) {
+        printf("Specified file does not exist.\n");
+        return;
+    }
+
+    if (currentPath.extension().u8string() != ".exe") {
+        printf("Specified file is not a valid type (.exe)\n");
+        return;
+    }
+
+    BOOL result = CreateProcessA(
+        _line.c_str(),
+        NULL,
+        NULL,           // Process handle not inheritable
+        NULL,           // Thread handle not inheritable
+        FALSE,          // Set handle inheritance to FALSE
+        0,              // No creation flags
+        NULL,           // Use parent's environment block
+        NULL,           // Use parent's starting directory 
+        &startupInfo,       // Pointer to STARTUPINFO structure
+        &procInfo           // Pointer to PROCESS_INFORMATION structure
+        );
+
+    WaitForSingleObject(procInfo.hProcess, INFINITE);
+
+    CloseHandle(procInfo.hProcess);
+    CloseHandle(procInfo.hThread);
 }
 
 #pragma endregion
