@@ -1,5 +1,6 @@
 #include "Shell.h"
 
+#pragma region Forwards
 
 void WriteDebug(std::string _log);
 void WriteDebug(std::string _log, std::string _context);
@@ -8,6 +9,8 @@ int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _
 
 bool BuiltIn(std::vector<std::string>* _lines);
 void ProcessCommand(std::vector<std::string>* _lines);
+
+#pragma endregion
 
 bool debug;
 
@@ -62,16 +65,6 @@ int main(int argc, char** argv)
     }
 }
 
-void WriteDebug(std::string _log) {
-    if (debug) printf("\t<%s>\n", _log.c_str());
-}
-
-void WriteDebug(std::string _log, std::string _context) {
-    std::string combined = _log;
-    combined.append(_context);
-    WriteDebug(combined);
-}
-
 int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _outLines) {
 
     _outLines->clear();
@@ -85,6 +78,22 @@ int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _
     }
     return i;
 }
+
+#pragma region Debugging
+
+void WriteDebug(std::string _log) {
+    if (debug) printf("\t<%s>\n", _log.c_str());
+}
+
+void WriteDebug(std::string _log, std::string _context) {
+    std::string combined = _log;
+    combined.append(_context);
+    WriteDebug(combined);
+}
+
+#pragma endregion
+
+#pragma region BuiltIns
 
 void help(std::vector<std::string>* _lines);
 void ls(std::vector<std::string>* _lines);
@@ -124,6 +133,7 @@ bool BuiltIn(std::vector<std::string>* _lines) {
     return false;
 }
 
+
 void help(std::vector<std::string>* _lines) {
     //First, check to see if there are no args.
     if (_lines->size() == 1) {
@@ -152,27 +162,55 @@ void help(std::vector<std::string>* _lines) {
     }
 }
 
+
+/// <summary>
+/// Built in command to list all of the files within a given directory.
+/// </summary>
 void ls(std::vector<std::string>* _lines) {
     bool verbose = false;
     bool all = false;
-    
+    fsPath target = currentPath;
+
     //Loop to process arguements.
     for (int i = 1; i < _lines->size(); i++) {
         std::string arg = _lines->at(i);
-
         if (strcmp(arg.c_str(), "-v") == 0 ||
             strcmp(arg.c_str(), "-l") == 0) {
+            //Verbose / Long format
             verbose = true;
-        }
-
-        if (strcmp(arg.c_str(), "-a") == 0) {
+        } else if (strcmp(arg.c_str(), "-a") == 0) {
+            //All files
             all = true;
         }
+
+        //Check if the arguement is a filename instead of a flag
+        if (arg.at(0) != '-') {
+            if (arg.at(0) == '.' && (arg.size() == 1 || arg.at(1) != '.')) {
+                //Case 1: First character is a dot and the second is not.
+                target = defaultPath;
+            }
+            else if (arg.at(0) == FILE_SEP ||
+                arg.at(0) == FILE_SEP_ALT) {
+                //Case 2: First character is a seperator
+                target = "";
+            }
+            else {
+                //Case 3: Normal appending
+                target = currentPath;
+            }
+
+            target /= _lines->at(1);
+        }
+    }
+
+    if (!std::filesystem::is_directory(target)) {
+        printf("ls command failed due to nonexistant directory at: %s\n", target.u8string().c_str());
+        return;
     }
 
     std::string full;
     std::string relative;
-    std::filesystem::directory_iterator itt = std::filesystem::directory_iterator(currentPath);
+    std::filesystem::directory_iterator itt = std::filesystem::directory_iterator(target);
     while (!itt._At_end()) {
         //Find whole string.
         full = std::string(itt->path().u8string());
@@ -211,24 +249,26 @@ void cd(std::vector<std::string>* _lines) {
     }
 
     //Three cases for changing the current directory:
-    //  1: the first character of the first arguement does not begin with a dot or a seperator.
+    //  1: the first character of the first arguement is a dot, representing the default home directory.
+    //      Unless the second character is also a dot, which will signify the parent directory instead.
+    //  2: the first character of the first arguement is a seperator, representing the root directory.
+    //  3: the first character of the first arguement does not begin with a dot or a seperator.
     //      In this case, the arguement should be appended to the current path and made lexically normal.
-    //  2: the first character of the first arguement is a dot, representing the default home directory.
-    //  3: the first character of the first arguement is a seperator, representing the root directory.
+
 
     fsPath target;
     std::string arg = _lines->at(1);
     if (arg.at(0) == '.' && (arg.size() == 1 || arg.at(1) != '.')) {
-        //Case 2: First character is a dot and the second is not.
+        //Case 1: First character is a dot and the second is not.
         target = defaultPath;
     }
     else if (arg.at(0) == FILE_SEP ||
         arg.at(0) == FILE_SEP_ALT) {
-        //Case 3: First character is a seperator
+        //Case 2: First character is a seperator
         target = "";
     }
     else {
-        //Case 1: Normal appending
+        //Case 3: Normal appending
         target = currentPath;
     }
     
@@ -240,14 +280,19 @@ void cd(std::vector<std::string>* _lines) {
 
     //Check to make sure the given directory exists.
     if (!std::filesystem::is_directory(target)) {
-        printf("cd command failed due to nonexistant directory at:\n%s\n", target.u8string().c_str());
+        printf("cd command failed due to nonexistant directory at: %s\n", target.u8string().c_str());
     }
     else {
         currentPath = target.u8string();
     }
 }
 
+#pragma endregion
+
+#pragma region External
 
 void ProcessCommand(std::vector<std::string>* _lines) {
 
 }
+
+#pragma endregion
