@@ -10,15 +10,16 @@ bool BuiltIn(std::vector<std::string>* _lines);
 void ProcessCommand(std::vector<std::string>* _lines);
 
 bool debug;
-std::string currentPath;
 
+fsPath currentPath;
+fsPath defaultPath;
 
 int main(int argc, char** argv)
 {
     debug = false;
-    currentPath = getenv("HOMEPATH");
+    defaultPath = currentPath = getenv("HOMEPATH");
 
-    currentPath.push_back(FILE_SEP);
+    currentPath = currentPath.lexically_normal();
 
     //Loop to process arguements.
     for (int i = 1; i < argc; i++) {
@@ -29,7 +30,7 @@ int main(int argc, char** argv)
 
     WriteDebug("Debug Enabled");
 
-    //WriteDebug("Home directory found to be", currentPath.c_str());
+    WriteDebug("Home directory found to be", currentPath.u8string().c_str());
 
     WriteDebug("Entering main loop");
 
@@ -106,7 +107,7 @@ bool BuiltIn(std::vector<std::string>* _lines) {
     }
     
     if (std::strcmp(command.c_str(), "pwd") == 0) {
-        printf("%s\n", currentPath.c_str());
+        printf("%s\n", currentPath.u8string().c_str());
         return true;
     }
     
@@ -209,18 +210,40 @@ void cd(std::vector<std::string>* _lines) {
         return;
     }
 
-    std::string target = currentPath;
-    target.append(_lines->at(1));
-    target.push_back(FILE_SEP);
+    //Three cases for changing the current directory:
+    //  1: the first character of the first arguement does not begin with a dot or a seperator.
+    //      In this case, the arguement should be appended to the current path and made lexically normal.
+    //  2: the first character of the first arguement is a dot, representing the default home directory.
+    //  3: the first character of the first arguement is a seperator, representing the root directory.
 
-    WriteDebug("Trying to change directory to file at: ", target);
-    
-    //Check to make sure the given directory exists.
-    if (!std::filesystem::is_directory(target)) {
-        printf("cd command failed due to nonexistant directory at:\n%s\n", target.c_str());
+    fsPath target;
+    std::string arg = _lines->at(1);
+    if (arg.at(0) == '.' && (arg.size() == 1 || arg.at(1) != '.')) {
+        //Case 2: First character is a dot and the second is not.
+        target = defaultPath;
+    }
+    else if (arg.at(0) == FILE_SEP ||
+        arg.at(0) == FILE_SEP_ALT) {
+        //Case 3: First character is a seperator
+        target = "";
     }
     else {
-        currentPath = target;
+        //Case 1: Normal appending
+        target = currentPath;
+    }
+    
+    target /= _lines->at(1);
+
+
+    //Make sure the target path is lexically normal.
+    target = target.lexically_normal();
+
+    //Check to make sure the given directory exists.
+    if (!std::filesystem::is_directory(target)) {
+        printf("cd command failed due to nonexistant directory at:\n%s\n", target.u8string().c_str());
+    }
+    else {
+        currentPath = target.u8string();
     }
 }
 

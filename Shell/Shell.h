@@ -8,6 +8,11 @@
 #include <sstream>
 #include <filesystem>
 
+#define FILE_SEP '\\'
+#define FILE_SEP_ALT '/'
+
+using fsPath = std::filesystem::path;
+
 const char* HELP_TEXT =
 	"<exit> - Close the shell.\n"
 	"<quit> - Alias for \"exit\".\n"
