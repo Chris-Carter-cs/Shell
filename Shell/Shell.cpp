@@ -5,7 +5,7 @@
 void WriteDebug(std::string _log);
 void WriteDebug(std::string _log, std::string _context);
 
-int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _outLines);
+int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _outLines, bool _allowQuotes = true);
 
 bool BuiltIn(std::vector<std::string>* _lines);
 void ProcessCommand(std::vector<std::string>* _lines, std::string _line);
@@ -17,6 +17,8 @@ bool debug;
 fsPath currentPath;
 fsPath defaultPath;
 fsPath bin;
+
+std::error_code err;
 
 int main(int argc, char** argv)
 {
@@ -82,16 +84,69 @@ int main(int argc, char** argv)
 
 #pragma region Utilities
 
-int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _outLines) {
+int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _outLines, bool _allowQuotes) {
+
+    //Boolean value to keep track of open and closed quotes.
+    bool withinQuotes = false;
+    bool hasQuote;
+    int quotePos;
 
     _outLines->clear();
     std::istringstream iss(_line);
+    std::string accumulator;
     int i = 0;
     while (!iss.eof()) {
         std::string word = "";
         std::getline(iss, word, _deliminter);
-        _outLines->emplace_back(word);
-        i++;
+
+        //Skip over this block of quotes are not being processed
+        if (_allowQuotes) {
+            //Check to see if the word contains a quote.
+
+            quotePos = word.find('\"');
+            
+            if (quotePos != std::string::npos) {
+                while (quotePos != std::string::npos) {
+                    word = word.erase(quotePos, 1);
+                    quotePos = word.find('\"');
+                }
+
+                if (withinQuotes) {
+                    //If the word is within a set of quotes and does contain a quote, append it to the accumulator and then append the accumulator to the list.
+                    accumulator.push_back(' ');
+                    accumulator.append(word);
+
+                    _outLines->emplace_back(accumulator);
+
+                    accumulator.clear();
+                    withinQuotes = false;
+                }
+                else {
+                    //If the word has an open quote then set the value of the accumulator to the word.
+                    accumulator = word;
+                    withinQuotes = true;
+                }
+            }
+            else {
+                if (withinQuotes) {
+                    //If the word is within a set of quotes and does not contain a quote, then append it to the previous word.
+                    accumulator.push_back(' ');
+                    accumulator.append(word);
+                }
+                else {
+                    //Otherwise, the word does not contain quotes and is not within a pair of quotes, so it should be treated as normal.
+                    _outLines->emplace_back(word);
+                }
+            }
+
+            //In all cases, increment i by 1.
+            i++;
+        }
+        else {
+            //If quotes are not allowed, then just delimint by spaces and add each word.
+            _outLines->emplace_back(word);
+            i++;
+        }        
     }
     return i;
 }
@@ -264,7 +319,9 @@ void ls(std::vector<std::string>* _lines) {
     if (!std::filesystem::is_directory(target)) {
         printf("ls command failed due to nonexistant directory at: %s\n", target.u8string().c_str());
         return;
-    }
+    }    
+
+    WriteDebug("Listing files within directory at: ", target.u8string().c_str());
 
     std::string full;
     std::string relative;
