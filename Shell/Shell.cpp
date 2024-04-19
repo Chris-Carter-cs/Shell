@@ -54,9 +54,7 @@ int main(int argc, char** argv)
     std::vector<std::string> linesV;
     std::string curr = "";
 
-    while (true) {
-
-        
+    while (true) {        
         //print prompt and get user input.
         std::cout << "> ";
         std::getline(std::cin, line);
@@ -64,16 +62,20 @@ int main(int argc, char** argv)
         //Flush cout
         std::flush(std::cout);
 
-        //Split the string into individual words.
-        SplitString(line, ' ', &linesV);
+        //Check to make sure that the input has more than one line.
+        if (line.length() > 0) {
+            //Split the string into individual words.
+            SplitString(line, ' ', &linesV);
 
-        //Handle built in commands.
-        if (!BuiltIn(&linesV)) {
+            //Handle built in commands.
+            if (!BuiltIn(&linesV)) {
 
-            //This is only reached if the given line is NOT a command.
-            //Interpret the line as a "run" command.
-            ProcessCommand(&linesV, line);
+                //This is only reached if the given line is NOT a command.
+                //Interpret the line as a "run" command.
+                ProcessCommand(&linesV, line);
+            }
         }
+
 
     }
 }
