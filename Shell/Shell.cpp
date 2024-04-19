@@ -16,11 +16,24 @@ bool debug;
 
 fsPath currentPath;
 fsPath defaultPath;
+fsPath bin;
 
 int main(int argc, char** argv)
 {
     debug = false;
     defaultPath = currentPath = getenv("HOMEPATH");
+
+    WCHAR exeDir[MAX_PATH];
+    GetModuleFileNameW(NULL, exeDir, MAX_PATH);
+    bin = exeDir;
+    bin /= "../bin";
+
+    bin = bin.lexically_normal();
+
+    if (!std::filesystem::exists(bin)) {
+        printf("Bin folder not found; creating bin at %s\n", bin.u8string().c_str());
+        std::filesystem::create_directory(bin);
+    }
 
     currentPath = currentPath.lexically_normal();
 
@@ -33,7 +46,7 @@ int main(int argc, char** argv)
 
     WriteDebug("Debug Enabled");
 
-    WriteDebug("Home directory found to be", currentPath.u8string().c_str());
+    WriteDebug("Home directory found to be ", currentPath.u8string().c_str());
 
     WriteDebug("Entering main loop");
 
@@ -81,7 +94,45 @@ int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _
     return i;
 }
 
+fsPath StringToPath(const std::string _string, bool _assumeCurrent = true) {
+    //Three cases for find a directory based off the current directory:
+        //  1: the first character of the first arguement is a tilde (~), representing the default home directory.
+        //  2: the first character of the first arguement is a seperator, representing the root directory.
+        //  3: the first character of the first arguement begins with a dot (.) or _assumeCurrent is true.
+        //  4: the first character is not a special character, and _assumeCurrent is false.
 
+    fsPath target;
+    if (_string.at(0) == HOME_DIR_SYMBOL) {
+        //Case 1: First character is a tilde.
+        target = defaultPath;
+
+        //In this case we'll also want to make sure the "~" character is removed
+        target /= _string.substr(1);
+    }
+    else {
+        if (_string.at(0) == FILE_SEP ||
+            _string.at(0) == FILE_SEP_ALT) {
+            //Case 2: First character is a seperator
+            target = "";
+        }
+        else if (_string.at(0) == CURR_DIR_SYMBOL || _assumeCurrent) {
+            //Case 3: Normal appending
+            target = currentPath;
+        }
+        else {
+            //Case 4: Use the bin folder instead of the current one.
+            target = bin;
+        }
+
+        target /= _string;
+    }
+
+
+    //Make sure the target path is lexically normal.
+    target = target.lexically_normal();
+
+    return target;
+}
 
 #pragma endregion
 
@@ -191,21 +242,7 @@ void ls(std::vector<std::string>* _lines) {
 
         //Check if the arguement is a filename instead of a flag
         if (arg.at(0) != '-') {
-            if (arg.at(0) == '.' && (arg.size() == 1 || arg.at(1) != '.')) {
-                //Case 1: First character is a dot and the second is not.
-                target = defaultPath;
-            }
-            else if (arg.at(0) == FILE_SEP ||
-                arg.at(0) == FILE_SEP_ALT) {
-                //Case 2: First character is a seperator
-                target = "";
-            }
-            else {
-                //Case 3: Normal appending
-                target = currentPath;
-            }
-
-            target /= _lines->at(1);
+            target = StringToPath(_lines->at(1));
         }
     }
 
@@ -254,35 +291,7 @@ void cd(std::vector<std::string>* _lines) {
         return;
     }
 
-    //Three cases for changing the current directory:
-    //  1: the first character of the first arguement is a dot, representing the default home directory.
-    //      Unless the second character is also a dot, which will signify the parent directory instead.
-    //  2: the first character of the first arguement is a seperator, representing the root directory.
-    //  3: the first character of the first arguement does not begin with a dot or a seperator.
-    //      In this case, the arguement should be appended to the current path and made lexically normal.
-
-
-    fsPath target;
-    std::string arg = _lines->at(1);
-    if (arg.at(0) == '.' && (arg.size() == 1 || arg.at(1) != '.')) {
-        //Case 1: First character is a dot and the second is not.
-        target = defaultPath;
-    }
-    else if (arg.at(0) == FILE_SEP ||
-        arg.at(0) == FILE_SEP_ALT) {
-        //Case 2: First character is a seperator
-        target = "";
-    }
-    else {
-        //Case 3: Normal appending
-        target = currentPath;
-    }
-    
-    target /= _lines->at(1);
-
-
-    //Make sure the target path is lexically normal.
-    target = target.lexically_normal();
+    fsPath target = StringToPath(_lines->at(1));
 
     //Check to make sure the given directory exists.
     if (!std::filesystem::is_directory(target)) {
@@ -318,16 +327,22 @@ void ProcessCommand(std::vector<std::string>* _lines, std::string _line) {
     ZeroMemory(&procInfo, sizeof(procInfo));
 
     //Check to make sure given file actually exists and can be run.
-    fsPath target = currentPath;
-    target /= _lines->at(0).c_str();
+    fsPath target = StringToPath(_lines->at(0).c_str(), false);
 
-    if (!std::filesystem::exists(target)) {
-        printf("Specified file does not exist.\n");
+    //If the user did not provide an extension, append the proper extension to the path.
+    if (strcmp(target.extension().u8string().c_str(), "") == 0) {
+        target += ".exe";
+    }
+
+    //Otherwise, check to make sure the file has the correct extension (.exe).
+    else if (strcmp(target.extension().u8string().c_str(), ".exe") != 0) {
+        printf("Specified file is not a valid type (.exe)\n");
         return;
     }
 
-    if (strcmp(target.extension().u8string().c_str(), ".exe") != 0) {
-        printf("Specified file is not a valid type (.exe)\n");
+    //Finally, make sure the file actually exists.
+    if (!std::filesystem::exists(target)) {
+        printf("Specified file does not exist.\n");
         return;
     }
 
