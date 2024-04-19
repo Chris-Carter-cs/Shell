@@ -18,12 +18,14 @@
 using fsPath = std::filesystem::path;
 
 const char* HELP_TEXT =
-	"<exit> - Close the shell.\n"
-	"<quit> - Alias for \"exit\".\n"
-	"<help> - Print this message, displaying all commands. Note that commands are case sensitive.\n"
-	"<ls>   - List all of the files within the current directory.\n"
-	"<pwd>  - Print the path of the current working directory.\n"
-	"<cd>   - Append the given text to the current working directory.\n";
+	"<exit>  - Close the shell.\n"
+	"<quit>  - Alias for \"exit\".\n"
+	"<help>  - Print this message, displaying all commands. Note that commands are case sensitive.\n"
+	"<ls>    - List all of the files within the current directory.\n"
+	"<pwd>   - Print the path of the current working directory.\n"
+	"<cd>    - Append the given text to the current working directory.\n"
+	"<clear> - Clear all of the text that has been printed to the console\n"
+	"<debug> - Check or set the programs debug output.\n";
 
 const char* HELP_EXIT =
 "<exit>\n\tClose the shell.\n"
@@ -50,4 +52,15 @@ const char* HELP_PWD =
 
 const char* HELP_CD =
 "<cd> <filename>\n\tChange the current working directory by appending the given filename to the path.\n"
+"";
+
+const char* HELP_CLEAR =
+"<clear>\n\tClear all of the text that has been printed to the console.\n"
+"";
+
+const char* HELP_DEBUG =
+"<debug>\n\tToggle the debug output of the program on or off.\n"
+"<debug ?>\n\tQuerry the progrma for the current debug status.\n"
+"<debug on>\n\tEnable debug messages.\n"
+"<debug on>\n\tDisable debug messages.\n"
 "";

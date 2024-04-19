@@ -157,6 +157,8 @@ void WriteDebug(std::string _log, std::string _context) {
 void help(std::vector<std::string>* _lines);
 void ls(std::vector<std::string>* _lines);
 void cd(std::vector<std::string>* _lines);
+void clear();
+void debugCommand(std::vector<std::string>* _lines);
 
 bool BuiltIn(std::vector<std::string>* _lines) {
     WriteDebug("Checking builtins");
@@ -169,29 +171,38 @@ bool BuiltIn(std::vector<std::string>* _lines) {
         exit(0);
     }
     
-    if (std::strcmp(command.c_str(), "help") == 0) {
+    else if (std::strcmp(command.c_str(), "help") == 0) {
         help(_lines);
         return true;
     }
     
-    if (std::strcmp(command.c_str(), "pwd") == 0) {
+    else if (std::strcmp(command.c_str(), "pwd") == 0) {
         printf("%s\n", currentPath.u8string().c_str());
         return true;
     }
     
-    if (std::strcmp(command.c_str(), "ls") == 0) {
+    else if (std::strcmp(command.c_str(), "ls") == 0) {
         ls(_lines);
         return true;
     }
 
-    if (std::strcmp(command.c_str(), "cd") == 0) {
+    else if (std::strcmp(command.c_str(), "cd") == 0) {
         cd(_lines);
+        return true;
+    }
+
+    else if (std::strcmp(command.c_str(), "clear") == 0) {
+        clear();
+        return true;
+    }
+
+    else if (std::strcmp(command.c_str(), "debug") == 0) {
+        debugCommand(_lines);
         return true;
     }
 
     return false;
 }
-
 
 void help(std::vector<std::string>* _lines) {
     //First, check to see if there are no args.
@@ -216,11 +227,13 @@ void help(std::vector<std::string>* _lines) {
             printf(HELP_PWD);
         } else if (strcmp(arg.c_str(), "cd") == 0) {
             printf(HELP_CD);
+        } else if (strcmp(arg.c_str(), "clear") == 0) {
+            printf(HELP_CLEAR);
+        } else if (strcmp(arg.c_str(), "debug") == 0) {
+            printf(HELP_DEBUG);
         }
-
     }
 }
-
 
 /// <summary>
 /// Built in command to list all of the files within a given directory.
@@ -303,6 +316,44 @@ void cd(std::vector<std::string>* _lines) {
         currentPath = target.u8string();
     }
 }
+
+/// <summary>
+/// Clear all of the output that has been printed to the console.
+/// </summary>
+void clear() {
+    std::flush(std::cout);
+    system("CLS");
+}
+
+/// <summary>
+/// Toggle, query or set the debug option on or off.
+/// </summary>
+void debugCommand(std::vector<std::string>* _lines) {
+    //If there are no arguements, then assume that the user is trying to toggle the debug output.
+    if (_lines->size() < 2) {
+        debug = !debug;
+        printf("Debug output toggled %s.\n", (debug ? "on" : "off"));
+        return;
+    }
+    
+    //Process Arguement
+    std::string arg = _lines->at(1);
+
+    if (strcmp(arg.c_str(), "?") == 0) {
+        printf("Debug output is currently %s.\n", (debug ? "on" : "off"));
+    }
+    else if(strcmp(arg.c_str(), "on") == 0 ||
+            strcmp(arg.c_str(), "t") == 0 ||
+            strcmp(arg.c_str(), "true") == 0) {
+        printf("Debug output enabled.\n");
+    }
+    else if (strcmp(arg.c_str(), "off") == 0 ||
+        strcmp(arg.c_str(), "f") == 0 ||
+        strcmp(arg.c_str(), "false") == 0) {
+        printf("Debug output disabled.\n");
+    }
+}
+
 
 #pragma endregion
 
