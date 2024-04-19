@@ -214,6 +214,9 @@ void ls(std::vector<std::string>* _lines);
 void cd(std::vector<std::string>* _lines);
 void clear();
 void debugCommand(std::vector<std::string>* _lines);
+void mkdir(std::vector<std::string>* _lines);
+void copy(std::vector<std::string>* _lines);
+void move(std::vector<std::string>* _lines);
 
 bool BuiltIn(std::vector<std::string>* _lines) {
     WriteDebug("Checking builtins");
@@ -225,34 +228,40 @@ bool BuiltIn(std::vector<std::string>* _lines) {
         printf("Exiting program due to exit command.\n");
         exit(0);
     }
-    
     else if (std::strcmp(command.c_str(), "help") == 0) {
         help(_lines);
         return true;
     }
-    
     else if (std::strcmp(command.c_str(), "pwd") == 0) {
         printf("%s\n", currentPath.u8string().c_str());
         return true;
     }
-    
     else if (std::strcmp(command.c_str(), "ls") == 0) {
         ls(_lines);
         return true;
     }
-
     else if (std::strcmp(command.c_str(), "cd") == 0) {
         cd(_lines);
         return true;
     }
-
     else if (std::strcmp(command.c_str(), "clear") == 0) {
         clear();
         return true;
     }
-
     else if (std::strcmp(command.c_str(), "debug") == 0) {
         debugCommand(_lines);
+        return true;
+    }
+    else if (std::strcmp(command.c_str(), "mkdir") == 0) {
+        mkdir(_lines);
+        return true;
+    }
+    else if (std::strcmp(command.c_str(), "copy") == 0) {
+        copy(_lines);
+        return true;
+    }
+    else if (std::strcmp(command.c_str(), "move") == 0) {
+        move(_lines);
         return true;
     }
 
@@ -409,6 +418,90 @@ void debugCommand(std::vector<std::string>* _lines) {
         strcmp(arg.c_str(), "false") == 0) {
         printf("Debug output disabled.\n");
     }
+}
+
+/// <summary>
+/// Create a new directory at the specified path.
+/// </summary>
+void mkdir(std::vector<std::string>* _lines) {
+    using std::filesystem::perms;
+    if (_lines->size() < 2) {
+        printf("Usage: <mkdir> <dir_name> [flags]");
+        return;
+    }
+    fsPath target = StringToPath(_lines->at(1));
+
+    bool changePerms = false;
+    perms dirPermissions = perms::none;
+    std::string permString;
+    //The three permission flags are "-o" for owner, "-g" for group
+
+    for (int i = 2; i < _lines->size(); i++) {
+        std::string arg = _lines->at(i);
+        if (strcmp(arg.c_str(), "-m") == 0) {
+            //For the -m flag, make sure that there is at least one more parameter in the input.
+            if (i + 1 >= _lines->size()) {
+                printf("Error in mkdir: The <-m> flag requires at least one additional arguement after it.\nAborting...\n");
+                return;
+            }
+            permString = _lines->at(i + 1);
+
+            if (permString.length() != 3) {
+                printf("Error in mkdir: The arguement following the <-m> flag should consist of three numbers between 0 and 7 inclusive.\nAborting...\n");
+                return;
+            }
+
+            for (int j = 0; j < 3; j++) {
+                if (permString[j] > '7' || permString[j] < '0') {
+                    printf("Error in mkdir: The arguement following the <-m> flag should consist of three numbers between 0 and 7 inclusive.\nAborting...\n");
+                    return;
+                }
+            }
+
+            unsigned char curr = permString[0] - '0';
+            if (curr & 0b0001) dirPermissions |= perms::owner_exec;
+            if (curr & 0b0010) dirPermissions |= perms::owner_write;
+            if (curr & 0b0100) dirPermissions |= perms::owner_read;
+
+            curr = permString[1] - '0';
+            if (curr & 0b0001) dirPermissions |= perms::group_exec;
+            if (curr & 0b0010) dirPermissions |= perms::group_write;
+            if (curr & 0b0100) dirPermissions |= perms::group_read;
+
+            curr = permString[2] - '0';
+            if (curr & 0b0001) dirPermissions |= perms::others_exec;
+            if (curr & 0b0010) dirPermissions |= perms::others_write;
+            if (curr & 0b0100) dirPermissions |= perms::others_read;
+
+            //Mark the permissions as changed.
+            changePerms = true;
+
+            //Increment i over the next arguement.
+            i++;
+        }
+    }
+
+    //Actually make the folder.
+    std::filesystem::create_directory(target);
+
+    if(changePerms)
+        //Apply permissions to the directory
+        std::filesystem::permissions(target, dirPermissions, std::filesystem::perm_options::replace);
+
+    return;
+}
+
+/// <summary>
+/// Copy a given file from one lcoation to another.
+/// </summary>
+void copy(std::vector<std::string>* _lines) { }
+
+/// <summary>
+/// Move a file from one location to another.
+/// Like copy, except it deletes the file at the previous location once the move is finished.
+/// </summary>
+void move(std::vector<std::string>* _lines) {
+
 }
 
 

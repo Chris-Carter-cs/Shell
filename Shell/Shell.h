@@ -8,6 +8,7 @@
 #include <sstream>
 #include <filesystem>
 #include <Windows.h>
+#include <bitset>
 
 #define FILE_SEP '\\'
 #define FILE_SEP_ALT '/'
