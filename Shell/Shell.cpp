@@ -65,6 +65,8 @@ int main(int argc, char** argv)
     }
 }
 
+#pragma region Utilities
+
 int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _outLines) {
 
     _outLines->clear();
@@ -78,6 +80,10 @@ int SplitString(std::string _line, char _deliminter, std::vector<std::string>* _
     }
     return i;
 }
+
+
+
+#pragma endregion
 
 #pragma region Debugging
 
@@ -295,6 +301,8 @@ void cd(std::vector<std::string>* _lines) {
 /// Take a program name as an input and then run that program as a new process, forwarding the appropriate parameters to it.
 /// </summary>
 void ProcessCommand(std::vector<std::string>* _lines, std::string _line) {
+    WriteDebug("Running program at ", _lines->at(0).c_str());
+
     //Make sure there is at least one arguement given.
     if (_lines->size() < 1) {
         printf("Error in running program: Requires at least one arguement\n"
@@ -309,28 +317,30 @@ void ProcessCommand(std::vector<std::string>* _lines, std::string _line) {
     startupInfo.cb = sizeof(startupInfo);
     ZeroMemory(&procInfo, sizeof(procInfo));
 
-    WriteDebug("Running program at ", _line.c_str());
-
     //Check to make sure given file actually exists and can be run.
     fsPath target = currentPath;
-    currentPath /= _lines->at(0).c_str();
+    target /= _lines->at(0).c_str();
 
-    if (!std::filesystem::exists(currentPath)) {
+    if (!std::filesystem::exists(target)) {
         printf("Specified file does not exist.\n");
         return;
     }
 
-    if (currentPath.extension().u8string() != ".exe") {
+    if (strcmp(target.extension().u8string().c_str(), ".exe") != 0) {
         printf("Specified file is not a valid type (.exe)\n");
         return;
     }
 
+    WriteDebug("Running file at: ", target.u8string().c_str());
+
+    LPSTR lineLPSTR = const_cast<char*>(_line.c_str());
+
     BOOL result = CreateProcessA(
-        _line.c_str(),
-        NULL,
+        target.u8string().c_str(),
+        lineLPSTR,
         NULL,           // Process handle not inheritable
         NULL,           // Thread handle not inheritable
-        FALSE,          // Set handle inheritance to FALSE
+        FALSE,          // Set handle inheritance to TRUE
         0,              // No creation flags
         NULL,           // Use parent's environment block
         NULL,           // Use parent's starting directory 
@@ -338,10 +348,17 @@ void ProcessCommand(std::vector<std::string>* _lines, std::string _line) {
         &procInfo           // Pointer to PROCESS_INFORMATION structure
         );
 
+    if (result == 0) {
+        printf("CreateProcessA function falled to run.\n");
+        return;
+    }
+
     WaitForSingleObject(procInfo.hProcess, INFINITE);
 
     CloseHandle(procInfo.hProcess);
     CloseHandle(procInfo.hThread);
+
+    WriteDebug("Foreground process terminated.");
 }
 
 #pragma endregion
