@@ -12,6 +12,9 @@
 #define FILE_SEP '\\'
 #define FILE_SEP_ALT '/'
 
+#define HOME_DIR_SYMBOL '~'
+#define CURR_DIR_SYMBOL '.'
+
 using fsPath = std::filesystem::path;
 
 const char* HELP_TEXT =
